@@ -24,4 +24,5 @@
 		"type"		: "git"
 		, "url"		: "git://github.com/joinbox/eb-api-wrapper.git"
 	}
+	, "private" 	: true
 }
