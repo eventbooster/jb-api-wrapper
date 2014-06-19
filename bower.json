@@ -1,0 +1,30 @@
+{
+	"name"			: "jquery-sourceset"
+	, "version"		: "0.1.6"
+	, "main"		: "src/jquery.srcset.js"
+	, "dependencies": {
+		"jquery"	: ">=1.10.0"
+	}
+	, "ignore"		: [
+		"tests"
+		, "js"
+		, "bower.json"
+		, "README.md"
+		, "LICENSE"
+	]
+	, "license"		: "MIT"
+	, "authors"		: [
+		{ 
+			"name"			: "Felix Steiner"
+			, "email"		: "felix@joinbox.com"
+			, "homepage"	: "http://joinbox.com" 
+		}
+	]
+	, "devDependencies"	: {
+		"qunit"		: ">=1.10.0"
+	}
+	, "repository"	: {
+		"type"		: "git"
+		, "url"		: "git://github.com/joinbox/srcset.git"
+	}
+}
