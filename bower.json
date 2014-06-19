@@ -1,9 +1,9 @@
 {
-	"name"			: "jquery-sourceset"
-	, "version"		: "0.1.6"
-	, "main"		: "src/jquery.srcset.js"
+	"name"			: "eb-api-wrapper"
+	, "version"		: "0.1.1"
+	, "main"		: "src/apiWrapperService.js"
 	, "dependencies": {
-		"jquery"	: ">=1.10.0"
+		"angular"	: ">=1.2.0"
 	}
 	, "ignore"		: [
 		"tests"
@@ -20,11 +20,8 @@
 			, "homepage"	: "http://joinbox.com" 
 		}
 	]
-	, "devDependencies"	: {
-		"qunit"		: ">=1.10.0"
-	}
 	, "repository"	: {
 		"type"		: "git"
-		, "url"		: "git://github.com/joinbox/srcset.git"
+		, "url"		: "git://github.com/joinbox/eb-api-wrapper.git"
 	}
 }
