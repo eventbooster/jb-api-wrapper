@@ -10,7 +10,47 @@
 angular
 	.module( "eb.apiWrapper", [] )
 	.factory( "APIWrapperService", [ "$q", "$http", function( $q, $http ) {
-	
+		
+
+
+
+		/**
+		* Takes JSON and makes an multipart/form-data string out of it; #todo IE9 support
+		*/
+		function transformJsonToMultipart( json ) {
+
+			var formData = new FormData();
+
+			for( var i in json ) {
+
+				// own property?
+				if( !json.hasOwnProperty( i ) ) {
+					continue;
+				}
+
+				// Value is not string or int or float
+				if( typeof json[ i ] !== "string" && typeof json[ i ] !== "number" && json[ i ] !== undefined ) {
+					console.error( "You can't convert data that's not a number or a string to Multipart/Form-Data – yet. Sorry. (%o)", json[ i ] );
+				}
+
+				// Undefined or something: set to empty string as FormData will convert undefined to "undefined"
+				if( !json[ i ] ) {
+					json[ i ] = "";
+				}
+
+
+				formData.append( i, json[ i ] );
+
+			}
+
+			console.error( formData );
+
+			return formData;
+
+		}
+
+
+
 
 		/**
 		* Makes API call and handles data
@@ -22,17 +62,37 @@ angular
 
 			// #todo: remove. will be done by server
 			requestData.headers = requestData.headers || {};
-			requestData.headers[ "api-version"] = requestData.headers["api-version"] || "0.1"
-			requestData.headers[ "content-language"] = requestData.headers["content-language"] || $( "html").attr( 'lang' );
+			requestData.headers[ "Api-Version"] = requestData.headers["api-version"] || "0.1"
+
+			var lang = $( "html" ).attr( 'lang' );
+			requestData.headers[ "Accept-Language" ] 	= requestData.headers["accept-language"] || lang;
+			requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] || lang;
 
 			requestData.data = requestData.data || {};
 			requestData.data.id_tenant = requestData.data.id_tenant || 1;
 
+			// Convert data to Multipart/Form-Data and set header correspondingly
+			// if we're PUTting, PATCHing or POSTing
+			var meth = requestData.method.toLowerCase();
+			if( meth === "post" || meth == "put" || meth == "patch" ) {
+				
+				// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
+				// In case of files, boundary ID is needed; can't be set manually.
+				requestData.headers[ "Content-Type" ] = undefined; 
+
+				// Don't set data directly – angular will JSONify it
+				requestData.transformRequest = function() {
+					return transformJsonToMultipart( requestData.data );
+				}
+
+			}
+
 			return $http( requestData )
 				.then( function( resp ) {
 					return handleSuccess( resp, responseData.requiredProperties, responseData.returnProperty )
-				}, function( reason ) {
-					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed (status " + reason.status + ")", code: "serverError"} );
+				}, function( response ) {
+					var message = response.data && response.data.msg ? response.data.msg : response.data;
+					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError"} );
 				} )
 		}
 
@@ -52,7 +112,7 @@ angular
 			// see https://github.com/joinbox/guidelines/blob/master/styleguide/RESTful.md#Range, basically
 			// handled by errorHandler on $http also
 			if( response.status !== 200 && response.status !== 201 ) {
-				return $q.reject( { code: "serverError", message: "Status not 200" } );
+				return $q.reject( { code: "serverError", message: "Status not 200; got " + response.data } );
 			}
 
 			// Got error as a response (or no response at all?)
