@@ -43,8 +43,6 @@ angular
 
 			}
 
-			console.error( formData );
-
 			return formData;
 
 		}
@@ -128,7 +126,7 @@ angular
 				for( var i = 0; i < requiredProperties.length; i++ ) {
 					if( !response.data[ requiredProperties[ i ] ] ) {
 
-						$q.reject( { code: "serverError", message: "Missing property " + requiredProperties[ i ] + " in data" } );
+						return $q.reject( { code: "serverError", message: "Missing property " + requiredProperties[ i ] + " in data" } );
 
 					}
 				}
