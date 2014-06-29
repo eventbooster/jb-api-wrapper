@@ -19,33 +19,128 @@ angular
 		*/
 		function transformJsonToMultipart( json ) {
 
-			var formData = new FormData();
+			// Don't use FormData – not supported by IE9
+			//var formData = new FormData();
 
-			for( var i in json ) {
+			// Remove $$hashKey etc. 
+			// See https://github.com/angular/angular.js/issues/1875
+			var data = JSON.parse( angular.toJson( json ) );
 
-				// own property?
-				if( !json.hasOwnProperty( i ) ) {
-					continue;
+
+			var boundary = "------EB-Boundary" + generateBoundary();
+
+			var formData = generateMultipartFieldsFromData( data, boundary, [] );
+			formData = formData.join( "" );
+
+			// Append final boundary
+			formData += boundary + "--";
+			
+			console.log( "Form Data: %o became %s", json, formData );
+
+			return {
+				boundary 	: boundary
+				, data  	: formData
+			}
+
+		}
+
+
+		/**
+		* Generates multipart fields from anything recursively
+		* Flattens everything out; only name and value of an object are put into multipart data, 
+		* no matter where and how deeply hidden they are
+		* @param <Object, Array> data 		Data to be serialized to Multipart
+		* @param <String> boundary 			Boundary for Multipart
+		* @param <Array> Multipart 			Multipart data gotten so far (recursion, as an array so that it can be
+		* 									passed as a reference
+		*/
+		function generateMultipartFieldsFromData( data, boundary, multipart ) {
+
+			if( angular.isObject( data ) ) {
+
+				for( var i in data ) {
+
+					//console.log( "parse %o", data[ i ] );
+
+					// Not own property
+					if( !data.hasOwnProperty( i ) ) {
+						continue;
+					}
+
+					// Object/Array: Recurse
+					if( angular.isObject( data[ i ] ) || angular.isArray( data[ i ] ) ) {
+						generateMultipartFieldsFromData( data[ i ], boundary, multipart );
+					}
+
+					else if( typeof data[ i ] === "string" || typeof data[ i ] === "number" || typeof data[ i ] === "boolean" ) {
+						currentFormData = boundary + "\n";
+						currentFormData += 'Content-Disposition: form-data; name="' + i + '"';
+						currentFormData += "\n\n";
+						currentFormData += data[ i ];
+						currentFormData += "\n";
+						multipart.push( currentFormData );
+					}
+
+					else if(data[ i ] === undefined ) {
+						console.log( "Empty field for multipart data: " + JSON.stringify( data[ i ] ) );
+						continue;
+					}
+
+					else {
+						console.error( "Can't append to formdata, unknown format: " + JSON.stringify( data[ i ] ) )
+					}
+
 				}
-
-				// Value is not string or int or float
-				if( typeof json[ i ] !== "string" && typeof json[ i ] !== "number" && json[ i ] !== undefined ) {
-					console.error( "You can't convert data that's not a number or a string to Multipart/Form-Data – yet. Sorry. (%o)", json[ i ] );
-				}
-
-				// Undefined or something: set to empty string as FormData will convert undefined to "undefined"
-				if( !json[ i ] ) {
-					json[ i ] = "";
-				}
-
-
-				formData.append( i, json[ i ] );
 
 			}
 
-			return formData;
+			else if (angular.isArray( data ) ) {
+
+				for( var i = 0; i < data.length; i++ ) {
+
+					if( angular.isArray( data[ i ] ) || angular.isObject( data[ i ] ) ) {
+						generateMultipartFieldsFromData( data[ i ], boundary, multipart );
+					}
+
+					else {
+						console.error( "Unknown type for array, can't append to formData: " + JSON.stringify( data[ i ] ) );
+					}
+
+				}
+
+			}
+
+			else if( data === undefined ) {
+				"Got undefined data for generating multipart: " + JSON.stringify( data );
+			}
+
+			else {
+				console.error( "Unknown type, can't append to formData: " + JSON.stringify( data ) );
+			}
+
+			return multipart;
 
 		}
+
+
+
+		/**
+		* Returns a UID for a boundary
+		*/
+		function generateBoundary() {
+			
+			function s4() {
+    			return Math.floor((1 + Math.random()) * 0x10000)
+               		.toString(16)
+               		.substring(1);
+  			}
+
+			return function() {
+    			return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4();
+			}();
+
+		}
+
 
 
 
@@ -67,21 +162,24 @@ angular
 			requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] || lang;
 
 			requestData.data = requestData.data || {};
-			requestData.data.id_tenant = requestData.data.id_tenant || 1;
+			//requestData.data.id_tenant = requestData.data.id_tenant || 1;
 
 			// Convert data to Multipart/Form-Data and set header correspondingly
 			// if we're PUTting, PATCHing or POSTing
 			var meth = requestData.method.toLowerCase();
 			if( meth === "post" || meth == "put" || meth == "patch" ) {
-				
+					
+				var multiPartData = transformJsonToMultipart( requestData.data );
+
 				// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
 				// In case of files, boundary ID is needed; can't be set manually.
-				requestData.headers[ "Content-Type" ] = undefined; 
+				requestData.headers[ "Content-Type" ] = "multipart/form-data; boundary=" + multiPartData.boundary; 
 
 				// Don't set data directly – angular will JSONify it
-				requestData.transformRequest = function() {
-					return transformJsonToMultipart( requestData.data );
-				}
+				/*requestData.transformRequest = function() {
+					return 
+				}*/
+				requestData.data = multiPartData.data;
 
 			}
 
@@ -90,7 +188,7 @@ angular
 					return handleSuccess( resp, responseData.requiredProperties, responseData.returnProperty )
 				}, function( response ) {
 					var message = response.data && response.data.msg ? response.data.msg : response.data;
-					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError"} );
+					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError", statusCode: response.status } );
 				} )
 		}
 
@@ -110,12 +208,12 @@ angular
 			// see https://github.com/joinbox/guidelines/blob/master/styleguide/RESTful.md#Range, basically
 			// handled by errorHandler on $http also
 			if( response.status !== 200 && response.status !== 201 ) {
-				return $q.reject( { code: "serverError", message: "Status not 200; got " + response.data } );
+				return $q.reject( { code: "serverError", message: "Status not 200; got " + response.data, statusCode: response.status } );
 			}
 
 			// Got error as a response (or no response at all?)
 			if( response && response.data && response.data.error ) {
-				return $q.reject( { code: "serverError", message: "Server returned error: '" + response.data.msg + "'" } );
+				return $q.reject( { code: "serverError", message: "Server returned error: '" + response.data.msg + "'", statusCode: response.status } );
 			}
 
 
@@ -126,7 +224,7 @@ angular
 				for( var i = 0; i < requiredProperties.length; i++ ) {
 					if( !response.data[ requiredProperties[ i ] ] ) {
 
-						return $q.reject( { code: "serverError", message: "Missing property " + requiredProperties[ i ] + " in data" } );
+						return $q.reject( { code: "serverError", message: "Missing property " + requiredProperties[ i ] + " in data", statusCode: response.status } );
 
 					}
 				}
