@@ -161,8 +161,11 @@ angular
 			requestData.headers[ "Accept-Language" ] 	= requestData.headers["accept-language"] || lang;
 			requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] || lang;
 
+			// Disable caching
+			requestData.headers[ "Pragma" ] 			= requestData.headers["pragma"] || "no-cache";
+			requestData.headers[ "Cache-Control" ] 		= requestData.headers["cache-control"] || "no-cache";
+
 			requestData.data = requestData.data || {};
-			//requestData.data.id_tenant = requestData.data.id_tenant || 1;
 
 			// Convert data to Multipart/Form-Data and set header correspondingly
 			// if we're PUTting, PATCHing or POSTing
@@ -175,13 +178,18 @@ angular
 				// In case of files, boundary ID is needed; can't be set manually.
 				requestData.headers[ "Content-Type" ] = "multipart/form-data; boundary=" + multiPartData.boundary; 
 
-				// Don't set data directly – angular will JSONify it
-				/*requestData.transformRequest = function() {
-					return 
-				}*/
 				requestData.data = multiPartData.data;
 
 			}
+
+			// Disable caching
+			requestData.cache = false;
+
+			// IE f***ing 9 f****ng cashes all f*****ng get requests
+			if( meth === "get" ) {
+				requestData.params = requestData.params || {};
+				requestData.params[ "_nocache" ] = new Date().getTime() + Math.round( Math.random() * 500 );
+			}			
 
 			return $http( requestData )
 				.then( function( resp ) {
