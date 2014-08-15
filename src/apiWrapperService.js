@@ -35,7 +35,7 @@ angular
 			// Append final boundary
 			formData += boundary + "--";
 			
-			console.log( "Form Data: %o became %s", json, formData );
+			//console.log( "Form Data: %o became %s", json, formData );
 
 			return {
 				boundary 	: boundary
@@ -165,6 +165,11 @@ angular
 			requestData.headers[ "Pragma" ] 			= requestData.headers["pragma"] || "no-cache";
 			requestData.headers[ "Cache-Control" ] 		= requestData.headers["cache-control"] || "no-cache";
 
+			// Add authorization (dirty, dirty!)
+			if( localStorage && localStorage.getItem( "requestToken" ) ) {
+				requestData.headers[ "Authorization" ] = requestData.headers[ "Authentication" ] || "ee-simple " + localStorage.getItem( "requestToken" );
+			}
+
 			requestData.data = requestData.data || {};
 
 			// Convert data to Multipart/Form-Data and set header correspondingly
@@ -232,6 +237,7 @@ angular
 				for( var i = 0; i < requiredProperties.length; i++ ) {
 					if( !response.data[ requiredProperties[ i ] ] ) {
 
+						console.log( "Missing required properties %o in %o", requiredProperties, response.data );
 						return $q.reject( { code: "serverError", message: "Missing property " + requiredProperties[ i ] + " in data", statusCode: response.status } );
 
 					}
