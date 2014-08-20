@@ -1,6 +1,6 @@
 {
 	"name"			: "eb-api-wrapper"
-	, "version"		: "0.2.2"
+	, "version"		: "0.2.3"
 	, "main"		: "src/apiWrapperService.js"
 	, "dependencies": {
 		"angular"	: ">=1.2.0"
