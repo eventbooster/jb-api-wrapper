@@ -33,7 +33,7 @@ angular
 			formData = formData.join( "" );
 
 			// Append final boundary
-			formData += boundary + "--";
+			formData += boundary + "--\r\n";
 			
 			//console.log( "Form Data: %o became %s", json, formData );
 
@@ -73,11 +73,11 @@ angular
 					}
 
 					else if( typeof data[ i ] === "string" || typeof data[ i ] === "number" || typeof data[ i ] === "boolean" ) {
-						currentFormData = boundary + "\n";
+						currentFormData = boundary + "\r\n";
 						currentFormData += 'Content-Disposition: form-data; name="' + i + '"';
-						currentFormData += "\n\n";
+						currentFormData += "\r\n\r\n";
 						currentFormData += data[ i ];
-						currentFormData += "\n";
+						currentFormData += "\r\n";
 						multipart.push( currentFormData );
 					}
 
@@ -181,7 +181,7 @@ angular
 
 				// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
 				// In case of files, boundary ID is needed; can't be set manually.
-				requestData.headers[ "Content-Type" ] = "multipart/form-data; boundary=" + multiPartData.boundary; 
+				requestData.headers[ "Content-Type" ] = "multipart/form-data; boundary=" + multiPartData.boundary.substr(2); 
 
 				requestData.data = multiPartData.data;
 
