@@ -12,116 +12,55 @@ angular
 	.factory( "APIWrapperService", [ "$q", "$http", function( $q, $http ) {
 		
 
-		/**
-		* Returns true if browser supports formData; else false
-		*/
-		function supportsFormData() {
-			//return false;
-			return window.FormData !== undefined;
-		}
-
-
 
 
 		/**
-		* Pseudo formData function for IE9 etc.
+		* Takes JSON and makes an multipart/form-data string out of it; #todo IE9 support
 		*/
-		function FakeFormData() {
-			var fields = [];
+		function transformJsonToMultipart( json ) {
+
+			// Don't use FormData – not supported by IE9
+			//var formData = new FormData();
+
+			// Remove $$hashKey etc. 
+			// See https://github.com/angular/angular.js/issues/1875
+			var data = JSON.parse( angular.toJson( json ) );
+
+
+			var boundary = "------EB-Boundary" + generateBoundary();
+
+			var formData = generateMultipartFieldsFromData( data, boundary, [] );
+			formData = formData.join( "" );
+
+			// Append final boundary
+			formData += boundary + "--\r\n";
+			
+			//console.log( "Form Data: %o became %s", json, formData );
+
 			return {
-
-				// Fake implementation of the append method
-				append: function( name, data ) {
-					fields.push( { name: name, data: data } );
-				}
-
-				// Returns the fields
-				, _getFields: function() {
-					return fields;
-				}
-
-				// Returns string
-				, _toString: function() {
-
-					var boundary 			= "--EB-Boundary" + generateBoundary()
-						, formDataString 	= ""
-						, newLine 			= "\r\n";
-
-					// Join all fields
-					for( var i = 0; i < fields.length; i++ ) {
-						formDataString += boundary + newLine;
-						formDataString += 'Content-Disposition: form-data; name="' + fields[ i ].name + '"';
-						formDataString += newLine + newLine;
-						formDataString += fields[ i ].data;
-						formDataString += newLine;
-					}
-
-					// Closing statement
-					formDataString += boundary;
-					formDataString += "--" + newLine;
-
-					console.log( "FormData: \n%s", formDataString );
-					return {
-						data 		: formDataString
-						, boundary 	: boundary
-					}
-
-				}
+				boundary 	: boundary
+				, data  	: formData
 			}
-		}
-
-
-
-
-
-		/**
-		* Transforms data into formData, to be sent through XHR
-		* @returns <Object> 		FormData object if browser supports it. Else
-		* 							{
-		*								data 		: "" // FormData string
-		*								, boundary 	: "" // Boundary used to generate FormData string
-		*							}
-		*/
-		function transformToMultipart( data ) {
-
-			// Initialize form data object (fake or real for real browsers)
-			var formDataObject = supportsFormData() ? new FormData() : new FakeFormData();
-
-			// Generate form data
-			var formData = generateFormDataFromData( data, formDataObject );
-
-			// For browsers not supporting formData: generate String from fake FormData object
-			if( !supportsFormData() ) {
-				formData = formData._toString();
-			}
-
-			return formData;
 
 		}
 
 
-
-
-
-
-
-
 		/**
-		* Add all (relevant) content of param data to formData
-		* Flattens everything out; only name and value of an object are put into formData
+		* Generates multipart fields from anything recursively
+		* Flattens everything out; only name and value of an object are put into multipart data, 
 		* no matter where and how deeply hidden they are
-		*
-		* Don't just use new FormData(data) to ensure that FormData() and FakeFormData() contain exactly
-		* the same values.
-		*
 		* @param <Object, Array> data 		Data to be serialized to Multipart
-		* @param <FormData> formData 		FormData() or FakeFormData() to which data is appended
+		* @param <String> boundary 			Boundary for Multipart
+		* @param <Array> Multipart 			Multipart data gotten so far (recursion, as an array so that it can be
+		* 									passed as a reference
 		*/
-		function generateFormDataFromData( data, formData ) {
+		function generateMultipartFieldsFromData( data, boundary, multipart ) {
 
 			if( angular.isObject( data ) ) {
 
 				for( var i in data ) {
+
+					//console.log( "parse %o", data[ i ] );
 
 					// Not own property
 					if( !data.hasOwnProperty( i ) ) {
@@ -130,27 +69,19 @@ angular
 
 					// Object/Array: Recurse
 					if( angular.isObject( data[ i ] ) || angular.isArray( data[ i ] ) ) {
-
-
-						// Is a file: Upload 
-						console.log( "obj %o", data[ i ] );
-						if( window.File && data[ i ] instanceof File ) {
-							console.warn( "Add file to formData" );
-							formData.append( i, data[ i ] );
-							continue;
-						}
-
-						generateFormDataFromData( data[ i ], formData );
-
+						generateMultipartFieldsFromData( data[ i ], boundary, multipart );
 					}
 
 					else if( typeof data[ i ] === "string" || typeof data[ i ] === "number" || typeof data[ i ] === "boolean" ) {
-
-						formData.append( i, data[ i ] );
-
+						currentFormData = boundary + "\r\n";
+						currentFormData += 'Content-Disposition: form-data; name="' + i + '"';
+						currentFormData += "\r\n\r\n";
+						currentFormData += data[ i ];
+						currentFormData += "\r\n";
+						multipart.push( currentFormData );
 					}
 
-					else if(data[ i ] === undefined ) {
+					else if(data[ i ] === undefined || data[ i ] === null ) {
 						console.log( "Empty field for multipart data: " + JSON.stringify( data[ i ] ) );
 						continue;
 					}
@@ -168,7 +99,7 @@ angular
 				for( var i = 0; i < data.length; i++ ) {
 
 					if( angular.isArray( data[ i ] ) || angular.isObject( data[ i ] ) ) {
-						generateFormDataFromData( data[ i ], formData );
+						generateMultipartFieldsFromData( data[ i ], boundary, multipart );
 					}
 
 					else {
@@ -187,25 +118,9 @@ angular
 				console.error( "Unknown type, can't append to formData: " + JSON.stringify( data ) );
 			}
 
-			return formData;
+			return multipart;
 
 		}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -261,30 +176,14 @@ angular
 			// if we're PUTting, PATCHing or POSTing
 			var meth = requestData.method.toLowerCase();
 			if( meth === "post" || meth == "put" || meth == "patch" ) {
-				
+					
+				var multiPartData = transformJsonToMultipart( requestData.data );
 
-				var multiPartData = transformToMultipart( requestData.data );
+				// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
+				// In case of files, boundary ID is needed; can't be set manually.
+				requestData.headers[ "Content-Type" ] = "multipart/form-data; boundary=" + multiPartData.boundary.substr(2); 
 
-
-				// FormData supported: set data to FormData object
-				if( supportsFormData() ) {
-	
-					requestData.data = multiPartData;
-
-					// Set content-type header to false or it won't be generated by angular/js/whatever
-					requestData.headers[ "Content-Type" ] = undefined;
-
-					// Stupid angular does transform request with FormData … prevent that by using custom transformRequest method.
-					// Thanks a lot, Jenny! http://uncorkedstudios.com/blog/multipartformdata-file-upload-with-angularjs
-					requestData.transformRequest = angular.identity;
-
-				}
-
-				// FormData not supported: set data to string, set header manually
-				else {
-					requestData.data = multiPartData.data;
-					requestData.headers[ "Content-Type" ] = "multipart/form-data; boundary=" + multiPartData.boundary.substr(2);
-				}
+				requestData.data = multiPartData.data;
 
 			}
 
@@ -299,7 +198,7 @@ angular
 
 			return $http( requestData )
 				.then( function( resp ) {
-					return handleSuccess( resp, responseData.requiredProperties, responseData.returnProperty )
+					return handleSuccess( resp, responseData )
 				}, function( response ) {
 					var message = response.data && response.data.msg ? response.data.msg : response.data;
 					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError", statusCode: response.status } );
@@ -316,7 +215,10 @@ angular
 		* @param {array} returnProperty 		Name of the property that the promise will be resolved with
 		* 										(property of response.data)
 		*/
-		function handleSuccess( response, requiredProperties, returnProperty ) {
+		function handleSuccess( response, responseHandlers ) {
+
+			var requiredProperties 		= responseHandlers ? responseHandlers.requiredProperties 	: undefined
+				, returnProperty 		= responseHandlers ? responseHandlers.returnProperty 		: undefined
 
 			// Bad status: not 200 or 201, 
 			// see https://github.com/joinbox/guidelines/blob/master/styleguide/RESTful.md#Range, basically
@@ -351,12 +253,15 @@ angular
 
 			// returnProperty is a function
 			if( returnProperty && typeof( returnProperty ) === "function" ) {
-				return returnProperty( response.data )
+				return returnProperty( response.data, response )
 			}
 
 			// returnProperty is nothing or a string
-			else {
+			else if( returnProperty ) {
 				return response.data[ returnProperty ];
+			}
+			else {
+				return response.data;
 			}
 
 		}
