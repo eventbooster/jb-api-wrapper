@@ -79,8 +79,6 @@ angular
 		*/
 		function generateFormDataFromData(data, formData) {
 
-			console.error( 'generateFormDataFromData: %o', data );
-
 			// Object
 			if( angular.isObject( data ) ) {
 				
@@ -98,7 +96,6 @@ angular
 								console.error( 'You can\'t upload files; browser doesn\'t support FormData' );
 							}
 							else {
-								console.error( 'append file %o', data[ i ] );
 								formData.append( i, data[ i ] );
 							}
 						}
@@ -112,7 +109,6 @@ angular
 
 					// String, number, boolean
 					else if( typeof data[ i ] === 'string' || typeof data[ i ] === 'number' || typeof data[ i ] === 'boolean' ) {
-						console.error( 'string oder so: %o', data[ i ] );
 						formData.append( i, data[ i ] );
 					}
 
@@ -203,7 +199,6 @@ angular
 			if( meth === "post" || meth == "put" || meth == "patch" ) {
 								
 				var multiPartData = transformToMultipart( requestData.data );
-				console.error( 'mpd: %o', multiPartData );
 
 				// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
 				// In case of files, boundary ID is needed; can't be set manually.
@@ -227,14 +222,10 @@ angular
 				requestData.params[ "_nocache" ] = new Date().getTime() + Math.round( Math.random() * 500 );
 			}
 
-			console.error( 'RequestData is %o', requestData );
-
 			return $http( requestData )
 				.then( function( resp ) {
-					console.error( 'scuces' );
 					return handleSuccess( resp, responseData )
 				}, function( response ) {
-					console.error( 'errrrrr' );
 					var message = response.data && response.data.msg ? response.data.msg : response.data;
 					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError", statusCode: response.status } );
 				} );
