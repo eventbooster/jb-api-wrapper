@@ -5,12 +5,14 @@
 * Returns promise
 */
 
+( function() {
 
+	'use strict';
 
-angular
+	angular
 	.module( "eb.apiWrapper", [] )
 	.factory( "APIWrapperService", [ "$q", "$http", function( $q, $http ) {
-		
+			
 
 		/**
 		* Returns true if browser supports formData
@@ -40,6 +42,7 @@ angular
 					return fields;
 				},
 				_toString: function() {
+					// Dirty compiled shit. Rewrite when we got time. 
 					for (var boundary = "--EB-Boundary" + generateBoundary(), formDataString = "", newLine = "\r\n", i = 0; i < fields.length; i++) formDataString += boundary + newLine, 
 					formDataString += 'Content-Disposition: form-data; name="' + fields[i].name + '"', 
 					formDataString += newLine + newLine, formDataString += fields[i].data, formDataString += newLine;
@@ -126,8 +129,8 @@ angular
 			else if ( angular.isArray( data ) ) {
 
 				// Append data recursively
-				for( var i = 0; i < data.length; i++ ) {
-					generateFormDataFromData( data[ i ], formData );
+				for( var j = 0; j < data.length; j++ ) {
+					generateFormDataFromData( data[ j ], formData );
 				}
 
 			}
@@ -176,19 +179,19 @@ angular
 
 			// #todo: remove. will be done by server
 			requestData.headers = requestData.headers || {};
-			requestData.headers[ "Api-Version"] = requestData.headers["api-version"] || "0.1"
+			requestData.headers[ "Api-Version"] = requestData.headers["api-version"] || "0.1";
 
 			var lang = $( "html" ).attr( 'lang' );
 			requestData.headers[ "Accept-Language" ] 	= requestData.headers["accept-language"] || lang;
 			requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] || lang;
 
 			// Disable caching
-			requestData.headers[ "Pragma" ] 			= requestData.headers["pragma"] || "no-cache";
+			requestData.headers.Pragma 					= requestData.headers.pragma || "no-cache";
 			requestData.headers[ "Cache-Control" ] 		= requestData.headers["cache-control"] || "no-cache";
 
 			// Add authorization (dirty, dirty!)
 			if( localStorage && localStorage.getItem( "requestToken" ) ) {
-				requestData.headers[ "Authorization" ] = requestData.headers[ "Authentication" ] || "ee-simple " + localStorage.getItem( "requestToken" );
+				requestData.headers.Authorization = requestData.headers.Authentication || "ee-simple " + localStorage.getItem( "requestToken" );
 			}
 
 			requestData.data = requestData.data || {};
@@ -219,12 +222,12 @@ angular
 			// IE f***ing 9 f****ng cashes all f*****ng get requests
 			if( meth === "get" ) {
 				requestData.params = requestData.params || {};
-				requestData.params[ "_nocache" ] = new Date().getTime() + Math.round( Math.random() * 500 );
+				requestData.params._nocache = new Date().getTime() + Math.round( Math.random() * 500 );
 			}
 
 			return $http( requestData )
 				.then( function( resp ) {
-					return handleSuccess( resp, responseData )
+					return handleSuccess( resp, responseData );
 				}, function( response ) {
 					var message = response.data && response.data.msg ? response.data.msg : response.data;
 					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError", statusCode: response.status } );
@@ -245,7 +248,7 @@ angular
 		function handleSuccess( response, responseHandlers ) {
 
 			var requiredProperties 		= responseHandlers ? responseHandlers.requiredProperties 	: undefined
-				, returnProperty 		= responseHandlers ? responseHandlers.returnProperty 		: undefined
+				, returnProperty 		= responseHandlers ? responseHandlers.returnProperty 		: undefined;
 
 			// Bad status: not 200 or 201, 
 			// see https://github.com/joinbox/guidelines/blob/master/styleguide/RESTful.md#Range, basically
@@ -280,7 +283,7 @@ angular
 
 			// returnProperty is a function
 			if( returnProperty && typeof( returnProperty ) === "function" ) {
-				return returnProperty( response.data, response )
+				return returnProperty( response.data, response );
 			}
 
 			// returnProperty is nothing or a string
@@ -299,9 +302,68 @@ angular
 
 		return {
 			request: callAPI
+		};
+
+
+
+
+	} ] )
+
+
+	/**
+	* Service that translates distributed time strings (YYYY-MM-DD HH:MM:SS) into
+	* JS dates (with local UTC offset) and converts local dates with UTC offset into 
+	* distributed time strings.
+	*/
+	.factory( 'APIDateService', [ '$filter', function( $filter ) {
+
+		function pad( nr ) {
+			var sign = nr < 0 ? '-' : ''
+				, absNr = Math.abs( nr );
+			return absNr <= 9 ? ( sign + '0' + nr ) : ( sign + absNr );
 		}
 
+		return {
+
+			/**
+			* Converts distibuted time string into JS date
+			* @param {string} timeString		Date in the form of "2015-04-08 15:36:11"
+			*/
+			fromServer: function( timeString ) {
+
+				console.log( 'APIDateService: Convert date %o from server', dateObject );
+
+				// ISO 8601 date (2015-04-08T00:07:19+00:00)
+				var isoString = timeString.replace( ' ', 'T' );
+				var timezoneOffset = new Date().getTimezoneOffset(); 
+				// Add +
+				// - comes back with pad function
+				if( timezoneOffset > 0 ) {
+					timezoneOffset += '+';
+				}
+				isoString += pad( Math.floor( timezoneOffset / 60 ) ) + ':' + pad( timezoneOffset % 60 );
+
+				console.error( isoString );
+
+				return new Date( timeString );
+
+			}
+
+			, toServer: function( dateObject ) {
+
+				console.log( 'APIDateService: Convert date %o for server', dateObject );
+
+				// Timezoneoffset * -1 in ms
+				var timezoneOffset		= new Date().getTimezoneOffset() * 60 * 1000
+					, gtcDate			= new Date( dateObject.getTime() + timezoneOffset );
 
 
+				return $filter( 'date' )( gtcDate, 'yyyy-MM-dd HH:mm:ss' );
+
+			}
+
+		};
 
 	} ] );
+
+}() );
