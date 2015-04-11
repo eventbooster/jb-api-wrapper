@@ -177,13 +177,15 @@
 
 			console.log( "REQUEST " + requestData.url + " (" + requestData.method + ")" ); 
 
+			var meth = requestData.method.toLowerCase();
+
 			// #todo: remove. will be done by server
 			requestData.headers = requestData.headers || {};
 			requestData.headers[ "Api-Version"] = requestData.headers["api-version"] || "0.1";
 
 			var lang = $( "html" ).attr( 'lang' );
 			requestData.headers[ "Accept-Language" ] 	= requestData.headers["accept-language"] || lang;
-			requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] || lang;
+
 
 			// Disable caching
 			requestData.headers.Pragma 					= requestData.headers.pragma || "no-cache";
@@ -198,8 +200,10 @@
 
 			// Convert data to Multipart/Form-Data and set header correspondingly
 			// if we're PUTting, PATCHing or POSTing
-			var meth = requestData.method.toLowerCase();
 			if( meth === "post" || meth == "put" || meth == "patch" ) {
+
+				// Content-language is only needed on requests that write to the server
+				requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] || lang;
 								
 				var multiPartData = transformToMultipart( requestData.data );
 
