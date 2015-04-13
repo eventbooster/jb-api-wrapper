@@ -183,8 +183,24 @@
 			requestData.headers = requestData.headers || {};
 			requestData.headers[ "Api-Version"] = requestData.headers["api-version"] || "0.1";
 
-			var lang = $( "html" ).attr( 'lang' );
-			requestData.headers[ "Accept-Language" ] 	= requestData.headers["accept-language"] || lang;
+			// Languages: If not set, return html's language, then all languages supported by the browser (gotten from navigator.languages)
+			var defaultLanguage			= $( "html" ).attr( 'lang' )
+				, defaultLanguages 		= [ defaultLanguage ];
+			if( navigator.languages ) {
+				// Make sure languages are only «de» and not «de-CH» and they're unique.
+				navigator.languages
+					// de-CH -> de
+					.map( function( lang ) {
+						return lang.substr( 0, 2 );
+					} )
+					// Remove duplicates
+					.forEach( function( lang ) {
+						if( defaultLanguages.indexOf( lang ) === -1 ) {
+							defaultLanguages.push( lang );
+						}
+					} );
+			}
+			requestData.headers[ "Accept-Language" ] 	= requestData.headers["accept-language"] || defaultLanguages.join( ', ' );
 
 
 			// Disable caching
@@ -203,7 +219,7 @@
 			if( meth === "post" || meth == "put" || meth == "patch" ) {
 
 				// Content-language is only needed on requests that write to the server
-				requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] || lang;
+				requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] ||defaultLanguage;
 								
 				var multiPartData = transformToMultipart( requestData.data );
 
