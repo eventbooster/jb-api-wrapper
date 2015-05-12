@@ -1,8 +1,18 @@
 /**
 * Wrapper for calls to API; checks responses for errors and handles them.
 *
-* Usage: ApiWrapperService.call( { method: "", url: "", data: {} }, { requiredProperties: [], returnProperty: ""|fn })
-* Returns promise
+* Usage: ApiWrapperService.request( requestObject }, { requiredProperties: [], returnProperty: ""|fn })
+* requestObject may contain the following properties: 
+* - method
+* - url
+* - data: {}
+* - headers: {}
+*
+* Data is sent as FormData except if the header «content-type» (or Content-Type) is provided. Then data is sent 
+* in the form provided.
+*
+* @return Promise
+* 
 */
 
 ( function() {
@@ -220,19 +230,38 @@
 
 				// Content-language is only needed on requests that write to the server
 				requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] ||defaultLanguage;
-								
-				var multiPartData = transformToMultipart( requestData.data );
+				
 
-				// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
-				// In case of files, boundary ID is needed; can't be set manually.
-				// Content-Type needs only to be set if browser doesn't support FormData
-				requestData.headers[ "Content-Type" ] = supportsFormData() ? undefined : "multipart/form-data; boundary=" + multiPartData.boundary.substr(2);
+				var hasContentTypeHeader = requestData.headers && ( requestData.headers.hasOwnProperty( 'content-type' ) || requestData.headers.hasOwnProperty( 'Content-Type' ) );
 
-				requestData.data = supportsFormData() ? multiPartData : multiPartData.data;
 
-				// Prevent angular from serializing our request data – especially for files
-				// http://uncorkedstudios.com/blog/multipartformdata-file-upload-with-angularjs
-				requestData.transformRequest = angular.identity;
+				if( hasContentTypeHeader ) {
+
+					// Request data and content-type are already set 
+					// Nothing to do
+
+				}
+
+
+				// Content-Type was not set: Use formdata, transform data to multipart.
+				else {
+
+					var multiPartData = transformToMultipart( requestData.data );
+
+					requestData.data = supportsFormData() ? multiPartData : multiPartData.data;
+
+					// Prevent angular from serializing our request data – especially for files
+					// http://uncorkedstudios.com/blog/multipartformdata-file-upload-with-angularjs
+					requestData.transformRequest = angular.identity;
+
+					// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
+					// In case of files, boundary ID is needed; can't be set manually.
+					// Content-Type needs only to be set if browser doesn't support FormData
+					requestData.headers[ "Content-Type" ] = supportsFormData() ? undefined : "multipart/form-data; boundary=" + multiPartData.boundary.substr(2);
+
+				}
+
+
 
 			}
 
