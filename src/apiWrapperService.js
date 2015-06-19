@@ -185,7 +185,7 @@
 		*/
 		function callAPI( requestData, responseData ) {
 
-			console.log( "REQUEST " + requestData.url + " (" + requestData.method + ")" ); 
+			console.log( "REQUEST " + requestData.url + " (" + requestData.method + ") with data %o and headers %o", requestData.data, requestData.headers ); 
 
 			var meth = requestData.method.toLowerCase();
 
@@ -237,6 +237,14 @@
 
 				if( hasContentTypeHeader ) {
 
+					var contentType = requestData.headers[ 'content-type' ] || requestData.headers[ 'Content-Type' ];
+
+					// application/json: Stringify, if not already done.
+					if( contentType.toLowerCase() === 'application/json' && !angular.isString( requestData.data ) ) {
+						requestData.data = JSON.stringify( requestData.data );
+					}
+
+					console.log( 'APIWrapperService: Content-Type already set, is %o', contentType );
 					// Request data and content-type are already set 
 					// Nothing to do
 
