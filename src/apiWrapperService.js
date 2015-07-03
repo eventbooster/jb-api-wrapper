@@ -218,8 +218,12 @@
 			requestData.headers[ "Cache-Control" ] 		= requestData.headers["cache-control"] || "no-cache";
 
 			// Add authorization (dirty, dirty!)
-			if( localStorage && localStorage.getItem( "requestToken" ) ) {
-				requestData.headers.Authorization = requestData.headers.Authentication || "ee-simple " + localStorage.getItem( "requestToken" );
+			// Take requestToken, if available (pasito back office) or accessToken (emotions) – again: dirty, dirty! We should integrate the userService
+			// properly. requestToken comes before accessToken, as accessToken may be available as well when using a requestToken.
+			var hasToken = localStorage.getItem( "requestToken" ) || localStorage.getItem( 'accessToken' );
+			if( localStorage && hasToken ) {
+				var token = localStorage.getItem( "requestToken" ) ? localStorage.getItem( "requestToken" ) : localStorage.getItem( "accessToken" );
+				requestData.headers.Authorization = requestData.headers.Authentication || "ee-simple " + token;
 			}
 
 			requestData.data = requestData.data || {};
