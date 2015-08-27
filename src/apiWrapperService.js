@@ -20,7 +20,7 @@
 	'use strict';
 
 	angular
-	.module( "eb.apiWrapper", [] )
+	.module( "jb.apiWrapper", [] )
 	.factory( "APIWrapperService", [ "$q", "$http", function( $q, $http ) {
 			
 
