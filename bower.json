@@ -22,6 +22,6 @@
 	]
 	, "repository"	: {
 		"type"		: "git"
-		, "url"		: "git://github.com/joinbox/eb-api-wrapper.git"
+		, "url"		: "git://github.com/joinbox/jb-api-wrapper.git"
 	}
 }
