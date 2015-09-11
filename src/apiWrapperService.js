@@ -314,7 +314,7 @@
 			// Bad status: not 200 or 201, 
 			// see https://github.com/joinbox/guidelines/blob/master/styleguide/RESTful.md#Range, basically
 			// handled by errorHandler on $http also
-			if( response.status !== 200 && response.status !== 201 ) {
+			if( response.status !== 200 && response.status !== 201 && response.status !== 301 && response.status !== 302 ) {
 				return $q.reject( { code: "serverError", message: "Status not 200; got " + response.data, statusCode: response.status } );
 			}
 
