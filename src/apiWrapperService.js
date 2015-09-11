@@ -15,6 +15,12 @@
 * 
 */
 
+
+// SHOULD ADD: 
+// - abort()
+// - loading status/progress (for image upload)
+// - return request's headers and other data
+
 ( function() {
 
 	'use strict';
@@ -290,8 +296,15 @@
 				.then( function( resp ) {
 					return handleSuccess( resp, responseData );
 				}, function( response ) {
-					var message = response.data && response.data.msg ? response.data.msg : response.data;
-					return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError", statusCode: response.status } );
+
+					if( response && response.status && response.status === 302 ) {
+						return handleSuccess( response, responseData );
+					}
+					else {
+						var message = response.data && response.data.msg ? response.data.msg : response.data;
+						return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError", statusCode: response.status } );
+					}
+
 				} );
 
 		}
