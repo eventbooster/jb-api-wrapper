@@ -1,12 +1,14 @@
 /**
 * Wrapper for calls to API; checks responses for errors and handles them.
 *
-* Usage: ApiWrapperService.request( requestObject }, { requiredProperties: [], returnProperty: ""|fn })
+* Usage: APIWrapperService.request( requestObject }, { requiredProperties: [], returnProperty: ''|fn })
 * requestObject may contain the following properties: 
 * - method
 * - url
 * - data: {}
 * - headers: {}
+*
+* Default headers may be configured in angular's config phase.
 *
 * Data is sent as FormData except if the header «content-type» (or Content-Type) is provided. Then data is sent 
 * in the form provided.
@@ -20,73 +22,76 @@
 // - abort()
 // - loading status/progress (for image upload)
 // - return request's headers and other data
-
 ( function() {
 
 	'use strict';
 
 	angular
-	.module( "jb.apiWrapper", [] )
-	.factory( "APIWrapperService", [ "$q", "$http", function( $q, $http ) {
-			
+	.module( 'jb.apiWrapper', [] )
 
-		/**
-		* Returns true if browser supports formData
-		*/
-		function supportsFormData() {
-			//return false;
-			return window.FormData;
-		}
+
+	.provider( 'APIWrapperService', [ function() {
+
+		var _defaultHeaders;
 
 
 		/**
-		* Creates FormData-like object on browsers that don't support FormData (hi there, IE9)
-		* Exposes the same functions (i.e. append) as FormData. 
-		* Does NOT support file uploads!
-		* _toString method returns data and boundary.
+		* Allow users to set default headers in config phase
 		*/
-		function FakeFormData() {
-			var fields = [];
-			return {
-				append: function(name, data) {
-					fields.push({
-						name	: name,
-						data	: data
-					});
-				},
-				_getFields: function() {
-					return fields;
-				},
-				_toString: function() {
-					// Dirty compiled shit. Rewrite when we got time. 
-					for (var boundary = "--EB-Boundary" + generateBoundary(), formDataString = "", newLine = "\r\n", i = 0; i < fields.length; i++) formDataString += boundary + newLine, 
-					formDataString += 'Content-Disposition: form-data; name="' + fields[i].name + '"', 
-					formDataString += newLine + newLine, formDataString += fields[i].data, formDataString += newLine;
-					return formDataString += boundary, formDataString += "--" + newLine, console.log("FormData: \n%s", formDataString), 
-					{
-						data: formDataString,
-						boundary: boundary
-					};
+		this.setDefaultHeaders = function( defaultHeaders ) {
+
+			if( defaultHeaders ) {
+
+				if( !angular.isObject( defaultHeaders ) ) {
+					throw new Error( 'APIWrapperService: Default headers is not an object: ' + JSON.stringify( defaultHeaders ) );
 				}
-			};
-		}
+
+				_defaultHeaders = defaultHeaders;
+
+			}
+
+		};
+
+
+		// Returns service stuff (that might be used AFTER the config phase)
+		this.$get = [ '$http', '$q', function( $http, $q ) {
+
+			return new APIWrapper( $http, $q, { headers: _defaultHeaders } );
+
+		} ];
+
+	} ] );
 
 
 
+	// Define the API Wrapper object
+	var APIWrapper;
 
-		/**
-		* Takes JSON and makes an multipart/form-data string out of it; #todo IE9 support
-		*/
-		function transformToMultipart( data ) {
+	// Hide all API Wrapper stuff from angular code
+	( function() {
 
-			var formDataObject	= supportsFormData() ? new FormData() : new FakeFormData()
-				, formData		= generateFormDataFromData( data, formDataObject );
+		var $q
+			, $http
+			, _defaults;
 
-			return supportsFormData() ? formData : formData._toString();
+		APIWrapper = function( http, q, defaults ) {
 
-		}
+			// Browser doesn't support FormData
+			if( !window.FormData ) {
+				throw new Error( 'APIWrapperService: Your browser does not support FormData, this web application will be of no use for you. Sorry.' );
+			}
 
+			$q = q;
+			$http = http;
+			_defaults = defaults;
 
+		};
+
+		APIWrapper.prototype.request = function( requestObject ) {
+
+			return callAPI( requestObject );
+
+		};
 
 
 
@@ -96,7 +101,7 @@
 		* @param <Object, Array> data		Object of data to be sent with request
 		* @param <Object> formData			FormData() or FakeFormData() to which data is appended
 		*/
-		function generateFormDataFromData(data, formData) {
+		function generateFormDataFromData( data, formData ) {
 
 			// Object
 			if( angular.isObject( data ) ) {
@@ -109,14 +114,7 @@
 						
 						// File
 						if( window.File && data[ i ] instanceof File ) {
-
-							// Browser doesn't support FormData – can't upload file
-							if( !supportsFormData() ) {
-								console.error( 'You can\'t upload files; browser doesn\'t support FormData' );
-							}
-							else {
-								formData.append( i, data[ i ] );
-							}
+							formData.append( i, data[ i ] );
 						}
 
 						// Not a file 
@@ -131,7 +129,7 @@
 						formData.append( i, data[ i ] );
 					}
 
-					// undefined, null
+					// undefined, null: send empty String
 					else if( data === undefined || data === null ) {
 						formData.append( i, '' );
 					}
@@ -153,7 +151,7 @@
 
 			// Unknown
 			else {
-				console.error( 'EBAPIWrapper: Unknown type was passed to generateFormDataFromData: %o', data );
+				console.error( 'APIWrapperService: Unknown type was passed to generateFormDataFromData: %o', data );
 			}
 
 			return formData;
@@ -165,43 +163,18 @@
 
 
 		/**
-		* Returns a UID for a boundary
+		* Returns an array of the most intensely used languages
 		*/
-		function generateBoundary() {
-			
-			function s4() {
-    			return Math.floor((1 + Math.random()) * 0x10000)
-               		.toString(16)
-               		.substring(1);
-  			}
+		function getUserLanguages() {
 
-			return function() {
-    			return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4();
-			}();
-
-		}
-
-
-
-
-
-		/**
-		* Makes API call and handles data
-		* @return {promise} Promise that will be resolved when answer is fine, else rejected
-		*/
-		function callAPI( requestData, responseData ) {
-
-			console.log( "REQUEST " + requestData.url + " (" + requestData.method + ") with data %o and headers %o", requestData.data, requestData.headers ); 
-
-			var meth = requestData.method.toLowerCase();
-
-			// #todo: remove. will be done by server
-			requestData.headers = requestData.headers || {};
-			requestData.headers[ "Api-Version"] = requestData.headers["api-version"] || "0.1";
+			var defaultLanguages = [];
 
 			// Languages: If not set, return html's language, then all languages supported by the browser (gotten from navigator.languages)
-			var defaultLanguage			= $( "html" ).attr( 'lang' )
-				, defaultLanguages 		= [ defaultLanguage ];
+			var htmlLanguage			= document.querySelector( 'html' ).getAttribute( 'lang' );
+			if( htmlLanguage ) {
+				defaultLanguages.push( htmlLanguage );
+			}
+
 			if( navigator.languages ) {
 				// Make sure languages are only «de» and not «de-CH» and they're unique.
 				navigator.languages
@@ -216,57 +189,94 @@
 						}
 					} );
 			}
-			requestData.headers[ "Accept-Language" ] 	= requestData.headers["accept-language"] || defaultLanguages.join( ', ' );
+
+			return defaultLanguages;
+
+		}
 
 
-			// Disable caching
-			requestData.headers.Pragma 					= requestData.headers.pragma || "no-cache";
-			requestData.headers[ "Cache-Control" ] 		= requestData.headers["cache-control"] || "no-cache";
 
-			// Add authorization (dirty, dirty!)
-			// Take requestToken, if available (pasito back office) or accessToken (emotions) – again: dirty, dirty! We should integrate the userService
-			// properly. requestToken comes before accessToken, as accessToken may be available as well when using a requestToken.
-			var hasToken = localStorage.getItem( "requestToken" ) || localStorage.getItem( 'accessToken' );
-			if( localStorage && hasToken ) {
-				var token = localStorage.getItem( "requestToken" ) ? localStorage.getItem( "requestToken" ) : localStorage.getItem( "accessToken" );
-				requestData.headers.Authorization = requestData.headers.Authentication || "ee-simple " + token;
+
+
+		/**
+		* Makes API call and handles data
+		* @param <Object> requestData	Data necessary to make a request. May contain: 
+		*								- method (defaults to GET)
+		*								- url (defaults to /)
+		*								- data (Object or other, see generateFormDataFromData)
+		*								- headers (Object)
+		* @return <Promise> 			Promise that will be resolved when answer is fine, else rejected
+		*/
+
+		function callAPI( requestData ) {
+
+
+			// Method
+			var validMethods = [ 'options', 'get', 'post', 'patch', 'put', 'delete' ];
+			requestData.method = ( requestData.method && angular.isString( requestData.method ) ) ? requestData.method.toLowerCase() : 'get';
+
+			if( validMethods.indexOf( requestData.method ) === -1 ) {
+				return new Error( 'APIWrapperService: Invalid API request method: ' + requestData.method );
 			}
 
+
+			console.log( 'APIWrapperService: Request ' + requestData.url + ' (' + requestData.method + ') with data %o and headers %o', requestData.data, requestData.headers ); 
+
+
+
+			// Headers
+			requestData.headers = requestData.headers || {};
+			if( _defaults && _defaults.headers ) {
+				angular.extend( requestData.headers, _defaults.headers );
+			}
+
+			// Headers that stay the same across all implementations (therefore do not inject them in the config phase)
+			requestData.headers[ 'Accept-Language' ] 	= requestData.headers[ 'accept-language' ] || requestData.headers[ 'Accept-Language' ] || getUserLanguages().join( ', ' );
+
+			// Disable caching
+			requestData.headers.Pragma 					= requestData.headers.pragma || requestData.headers.Pragma || 'no-cache';
+			requestData.headers[ 'Cache-Control' ] 		= requestData.headers[ 'Cache-Control' ] || requestData.headers[ 'Cache-Control' ] || 'no-cache';
+
+
+
+
+
+
+			// Data
 			requestData.data = requestData.data || {};
 
 			// Convert data to Multipart/Form-Data and set header correspondingly
 			// if we're PUTting, PATCHing or POSTing
-			if( meth === "post" || meth == "put" || meth == "patch" ) {
+			if( requestData.method === 'post' || requestData.method == 'put' || requestData.method == 'patch' ) {
 
-				// Content-language is only needed on requests that write to the server
-				requestData.headers[ "Content-Language" ] 	= requestData.headers["content-language"] ||defaultLanguage;
+
+				// Content-Language is only needed on requests that write to the server
+				requestData.headers[ 'Content-Language' ] 	= requestData.headers[ 'content-language' ] || requestData.headers[ 'Content-Language' ];
+				if( getUserLanguages().length > 0 && !requestData.headers[ 'Content-Language' ] ) {
+					requestData.headers[ 'Content-Language' ] = getUserLanguages()[ 0 ];
+				}
 				
+				// Content-Type
+				var contentType = requestData.headers[ 'content-type' ] || requestData.headers[ 'Content-Type' ];
 
-				var hasContentTypeHeader = requestData.headers && ( requestData.headers.hasOwnProperty( 'content-type' ) || requestData.headers.hasOwnProperty( 'Content-Type' ) );
-
-
-				if( hasContentTypeHeader ) {
-
-					var contentType = requestData.headers[ 'content-type' ] || requestData.headers[ 'Content-Type' ];
+				// If Content-Type is set and is application/json, stringify content, if needed
+				if( contentType ) {
 
 					// application/json: Stringify, if not already done.
 					if( contentType.toLowerCase() === 'application/json' && !angular.isString( requestData.data ) ) {
 						requestData.data = JSON.stringify( requestData.data );
 					}
 
-					console.log( 'APIWrapperService: Content-Type already set, is %o', contentType );
-					// Request data and content-type are already set 
-					// Nothing to do
-
 				}
 
 
-				// Content-Type was not set: Use formdata, transform data to multipart.
+				// Content-Type was not yet set: Use FormData, transform data to multipart.
 				else {
 
-					var multiPartData = transformToMultipart( requestData.data );
+					var formData = new FormData();
+					generateFormDataFromData( requestData.data, formData );
 
-					requestData.data = supportsFormData() ? multiPartData : multiPartData.data;
+					requestData.data = formData;
 
 					// Prevent angular from serializing our request data – especially for files
 					// http://uncorkedstudios.com/blog/multipartformdata-file-upload-with-angularjs
@@ -275,169 +285,98 @@
 					// Let user set content type: https://groups.google.com/forum/#!topic/angular/MBf8qvBpuVE
 					// In case of files, boundary ID is needed; can't be set manually.
 					// Content-Type needs only to be set if browser doesn't support FormData
-					requestData.headers[ "Content-Type" ] = supportsFormData() ? undefined : "multipart/form-data; boundary=" + multiPartData.boundary.substr(2);
+					requestData.headers[ 'Content-Type' ] = undefined;
 
 				}
 
 
 
 			}
+
+
 
 			// Disable caching
 			requestData.cache = false;
 
 			// IE f***ing 9 f****ng cashes all f*****ng get requests
-			if( meth === "get" ) {
+			if( requestData.method === 'get' ) {
 				requestData.params = requestData.params || {};
-				requestData.params._nocache = new Date().getTime() + Math.round( Math.random() * 500 );
+				requestData.params._nocache = new Date().getTime() + Math.round( Math.random() * 9999 );
 			}
+
+
+			console.log( 'APIWrapperService: Make $http request with %o', requestData );
 
 			return $http( requestData )
-				.then( function( resp ) {
-					return handleSuccess( resp, responseData );
+				.then( function( response ) {
+	
+					return handleSuccess( response );					
+
 				}, function( response ) {
 
-					if( response && response.status && response.status === 302 ) {
-						return handleSuccess( response, responseData );
+					// 301 and 302 should not fail, hell!
+					var validStatusCodes = [ 301, 302 ];
+					if( response && response.status && validStatusCodes.indexOf( response.status ) > -1 ) {
+						return handleSuccess( response );
+					}
+
+
+					// Try to get the best description of the error
+					var description;
+
+					if( !angular.isString( response.data ) ) {
+
+						if( angular.isObject( response.data ) ) {
+
+							// Names of the fields that might hold the error, least important first
+							var fieldNames = [ 'status', 'msg', 'message', 'description' ];
+							fieldNames.forEach( function( fieldName ) {
+								if( response.data[ fieldName ] ) {
+									description = response.data[ fieldName ];
+								}
+							} );
+
+							if( !description ) {
+								description  = JSON.stringify( response.data );
+							}
+
+						}
+
 					}
 					else {
-						var message = response.data && response.data.msg ? response.data.msg : response.data;
-						return $q.reject( { message: "HTTP " + requestData.method + " request to " + requestData.url + " (" + requestData.method + ") failed. Status " + response.status + ". Reason: " + message + ".", code: "serverError", statusCode: response.status } );
+						description = response.data;
+					}
+					
+					if( !description ) {
+						description = 'HTTP ' + requestData.method.toUpperCase() + ' request to ' + requestData.url + ' failed: ' + response.data + ' (Status ' + response.status + ')';
 					}
 
+					return $q.reject( new Error( description ) );
+
+				
 				} );
 
-		}
-
-
-
-
-		/**
-		* Checks a API response for it's validity (all required data )
-		* @return {promise} 					Promise that is resolved if everything is fine, else rejected
-		* @param {array} requiredProperties		Array of properties that response.data must contain to be valid
-		* @param {array} returnProperty 		Name of the property that the promise will be resolved with
-		* 										(property of response.data)
-		*/
-		function handleSuccess( response, responseHandlers ) {
-
-			var requiredProperties 		= responseHandlers ? responseHandlers.requiredProperties 	: undefined
-				, returnProperty 		= responseHandlers ? responseHandlers.returnProperty 		: undefined;
-
-			// Bad status: not 200 or 201, 
-			// see https://github.com/joinbox/guidelines/blob/master/styleguide/RESTful.md#Range, basically
-			// handled by errorHandler on $http also
-			if( response.status !== 200 && response.status !== 201 && response.status !== 301 && response.status !== 302 ) {
-				return $q.reject( { code: "serverError", message: "Status not 200; got " + response.data, statusCode: response.status } );
-			}
-
-			// Got error as a response (or no response at all?)
-			if( response && response.data && response.data.error ) {
-				return $q.reject( { code: "serverError", message: "Server returned error: '" + response.data.msg + "'", statusCode: response.status } );
-			}
-
-
-			// Check if all requiredProperties are available
-			if( requiredProperties && requiredProperties.length > 0 ) {
-
-				// One of response's properties is missing
-				for( var i = 0; i < requiredProperties.length; i++ ) {
-					if( !response.data[ requiredProperties[ i ] ] ) {
-
-						console.log( "Missing required properties %o in %o", requiredProperties, response.data );
-						return $q.reject( { code: "serverError", message: "Missing property " + requiredProperties[ i ] + " in data", statusCode: response.status } );
-
-					}
-				}
-
-			}
-
-
-			// Everything fine
-
-			// returnProperty is a function
-			if( returnProperty && typeof( returnProperty ) === "function" ) {
-				return returnProperty( response.data, response );
-			}
-
-			// returnProperty is nothing or a string
-			else if( returnProperty ) {
-				return response.data[ returnProperty ];
-			}
-			else {
-				return response.data;
-			}
 
 		}
 
 
 
 
+		function handleSuccess( response ) {
 
-		return {
-			request: callAPI
-		};
+			var ret = response.data;
+			response.abort = function() {
+				console.error( 'ABORT? :-)' );
+			};
+			return ret;
 
-
-
-
-	} ] )
-
-
-	/**
-	* Service that translates distributed time strings (YYYY-MM-DD HH:MM:SS) into
-	* JS dates (with local UTC offset) and converts local dates with UTC offset into 
-	* distributed time strings.
-	*/
-	.factory( 'APIDateService', [ '$filter', function( $filter ) {
-
-		function pad( nr ) {
-			var sign = nr < 0 ? '-' : ''
-				, absNr = Math.abs( nr );
-			return absNr <= 9 ? ( sign + '0' + nr ) : ( sign + absNr );
 		}
 
-		return {
-
-			/**
-			* Converts distibuted time string into JS date
-			* @param {string} timeString		Date in the form of "2015-04-08 15:36:11"
-			*/
-			fromServer: function( timeString ) {
-
-				console.log( 'APIDateService: Convert date %o from server', dateObject );
-
-				// ISO 8601 date (2015-04-08T00:07:19+00:00)
-				var isoString = timeString.replace( ' ', 'T' );
-				var timezoneOffset = new Date().getTimezoneOffset(); 
-				// Add +
-				// - comes back with pad function
-				if( timezoneOffset > 0 ) {
-					timezoneOffset += '+';
-				}
-				isoString += pad( Math.floor( timezoneOffset / 60 ) ) + ':' + pad( timezoneOffset % 60 );
-
-				console.error( isoString );
-
-				return new Date( timeString );
-
-			}
-
-			, toServer: function( dateObject ) {
-
-				console.log( 'APIDateService: Convert date %o for server', dateObject );
-
-				// Timezoneoffset * -1 in ms
-				var timezoneOffset		= new Date().getTimezoneOffset() * 60 * 1000
-					, gtcDate			= new Date( dateObject.getTime() + timezoneOffset );
 
 
-				return $filter( 'date' )( gtcDate, 'yyyy-MM-dd HH:mm:ss' );
 
-			}
+	} )();
 
-		};
 
-	} ] );
 
-}() );
+} )();
