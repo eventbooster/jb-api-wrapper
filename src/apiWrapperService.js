@@ -87,6 +87,24 @@
 
 		};
 
+
+
+
+		/**
+		* Set default header. Needed e.g. in login view: 
+		* - In the app's config phase, the accessToken is not (yet) available
+		* - The token becomes available and must be used from then on.
+		*/
+		APIWrapper.prototype.setDefaultHeader = function( headerName, headerValue ) {
+
+			_defaults.headers[ headerName ] = headerValue;
+
+		};
+
+
+
+
+
 		APIWrapper.prototype.request = function( requestObject ) {
 
 			return callAPI( requestObject );
