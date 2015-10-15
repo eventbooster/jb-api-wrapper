@@ -32,6 +32,7 @@
 
 	.provider( 'APIWrapperService', [ function() {
 
+
 		var _defaultHeaders;
 
 
@@ -394,6 +395,74 @@
 
 
 	} )();
+
+
+
+
+
+
+
+
+	angular
+	.module( 'jb.apiWrapper' )	
+
+	/**
+	* Service that translates distributed time strings (YYYY-MM-DD HH:MM:SS) into
+	* JS dates (with local UTC offset) and converts local dates with UTC offset into 
+	* distributed time strings.
+	*
+	* Needs to stay here: Is used to send HEADERS (!) sometimes.
+	*
+	*/
+	.factory( 'APIDateService', [ '$filter', function( $filter ) {
+
+		function pad( nr ) {
+			var sign = nr < 0 ? '-' : ''
+				, absNr = Math.abs( nr );
+			return absNr <= 9 ? ( sign + '0' + nr ) : ( sign + absNr );
+		}
+
+		return {
+
+			/**
+			* Converts distibuted time string into JS date
+			* @param {string} timeString		Date in the form of "2015-04-08 15:36:11"
+			*/
+			fromServer: function( timeString ) {
+
+				console.log( 'APIDateService: Convert date %o from server', dateObject );
+
+				// ISO 8601 date (2015-04-08T00:07:19+00:00)
+				var isoString = timeString.replace( ' ', 'T' );
+				var timezoneOffset = new Date().getTimezoneOffset(); 
+				// Add +
+				// - comes back with pad function
+				if( timezoneOffset > 0 ) {
+					timezoneOffset += '+';
+				}
+				isoString += pad( Math.floor( timezoneOffset / 60 ) ) + ':' + pad( timezoneOffset % 60 );
+
+				return new Date( timeString );
+
+			}
+
+			, toServer: function( dateObject ) {
+
+				console.log( 'APIDateService: Convert date %o for server', dateObject );
+
+				// Timezoneoffset * -1 in ms
+				var timezoneOffset		= new Date().getTimezoneOffset() * 60 * 1000
+					, gtcDate			= new Date( dateObject.getTime() + timezoneOffset );
+
+				return $filter( 'date' )( gtcDate, 'yyyy-MM-dd HH:mm:ss' );
+
+			}
+
+		};
+
+	} ] );
+
+
 
 
 
