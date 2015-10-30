@@ -318,7 +318,7 @@
 			requestData.cache = false;
 
 			// IE f***ing 9 f****ng cashes all f*****ng get requests
-			if( requestData.method === 'get' ) {
+			if( requestData.method === 'get' && navigator && navigator.appVersion && navigator.appVersion.toLowerCase().indexOf("msie 9") > -1 ) {
 				requestData.params = requestData.params || {};
 				requestData.params._nocache = new Date().getTime() + Math.round( Math.random() * 9999 );
 			}
