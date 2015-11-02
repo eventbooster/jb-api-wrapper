@@ -224,7 +224,7 @@
 		*								- url (defaults to /)
 		*								- data (Object or other, see generateFormDataFromData)
 		*								- headers (Object)
-		* @return <Promise> 			Promise that will be resolved when answer is fine, else rejected
+		* @return <Promise> 			Promise that will be resolved when answer is fine, else rejected with a custom HTTPError
 		*/
 
 		function callAPI( requestData ) {
@@ -365,12 +365,25 @@
 					else {
 						description = response.data;
 					}
-					
+
 					if( !description ) {
 						description = 'HTTP ' + requestData.method.toUpperCase() + ' request to ' + requestData.url + ' failed: ' + response.data + ' (Status ' + response.status + ')';
 					}
 
-					return $q.reject( new Error( description ) );
+
+					function HTTPError( description ) {
+						if( Error.captureStackTrace && angular.isFunction( Error.captureStackTrace ) ) {
+							Error.captureStackTrace( this );
+						}
+						this.statusCode = response.status;
+						this.message = description;
+						this.name = 'HTTPError';
+					}
+					HTTPError.prototype = Object.create( Error.prototype );
+
+					
+
+					return $q.reject( new HTTPError( description ) );
 
 				
 				} );
