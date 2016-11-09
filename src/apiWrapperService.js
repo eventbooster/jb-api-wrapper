@@ -26,14 +26,16 @@
 
 	'use strict';
 
-	angular
-	.module( 'jb.apiWrapper', [] )
+	var _module = angular.module( 'jb.apiWrapper', [] );
+
+	/**
+	 * Provider for the APIWrapperService.
+	 */
+	_module.provider( 'APIWrapperService', [ function() {
 
 
-	.provider( 'APIWrapperService', [ function() {
-
-
-		var _defaultHeaders;
+		var   _defaultHeaders   = {}
+            , _optionsFormatter = null;
 
 
 		/**
@@ -53,11 +55,39 @@
 
 		};
 
+        /**
+         * Allows setting single headers in the config phase.
+         *
+         * @param key
+         * @param value
+         */
+        this.setDefaultHeader = function(key, value) {
+            _defaultHeaders[key] = value;
+        };
+
+        /**
+         * Getter for the formatter so one could wrap it if needed.
+         *
+         * @returns {*}
+         */
+        this.getOptionsFormatter = function(){
+            return _optionsFormatter;
+        };
+
+        /**
+         * Setter for the formatter which must implement the format(object) method and return the value or a promise.
+         *
+         * @param formatter
+         */
+        this.setOptionsFormatter = function(formatter){
+            _optionsFormatter = formatter;
+        };
+
 
 		// Returns service stuff (that might be used AFTER the config phase)
 		this.$get = [ '$http', '$q', function( $http, $q ) {
 
-			return new APIWrapper( $http, $q, { headers: _defaultHeaders } );
+			return new APIWrapper( $http, $q, _optionsFormatter, { headers: _defaultHeaders } );
 
 		} ];
 
@@ -75,7 +105,7 @@
 			, $http
 			, _defaults;
 
-		APIWrapper = function( http, q, defaults ) {
+		APIWrapper = function( http, q, optionsFormatter, defaults ) {
 
 			// Browser doesn't support FormData
 			if( !window.FormData ) {
@@ -84,6 +114,7 @@
 
 			$q = q;
 			$http = http;
+            this.optionsFormatter = optionsFormatter;
 			_defaults = defaults;
 
 		};
@@ -92,25 +123,80 @@
 
 
 		/**
-		* Set default header. Needed e.g. in login view: 
-		* - In the app's config phase, the accessToken is not (yet) available
-		* - The token becomes available and must be used from then on.
-		*/
+		 * Set default header. Needed e.g. in login view:
+		 * - In the app's config phase, the accessToken is not (yet) available
+		 * - The token becomes available and must be used from then on.
+		 */
 		APIWrapper.prototype.setDefaultHeader = function( headerName, headerValue ) {
 
 			_defaults.headers[ headerName ] = headerValue;
 
 		};
 
-
-
-
-
+        /**
+         * @param <Object> requestData	Data necessary to make a request. May contain:
+         *								- method (defaults to GET)
+         *								- url (defaults to /)
+         *								- data (Object or other, see generateFormDataFromData)
+         *								- headers (Object)
+         */
 		APIWrapper.prototype.request = function( requestObject ) {
 
 			return callAPI( requestObject );
 
 		};
+
+        APIWrapper.prototype._createRequestObject = function(method, url, headersAndData){
+
+            var   requestData   = {}
+                , options       = headersAndData || {}
+                , headers       = options.headers
+                , data          = options.data;
+
+            requestData.method  = (method && angular.isString(method)) ? method.toLowerCase() : 'get';
+            requestData.url     = url;
+            requestData.headers = angular.isDefined(headers) ? headers : {};
+
+            // Only set data if there is data present
+            if(angular.isDefined(data)){
+                requestData.data = data;
+            }
+
+            return requestData;
+        };
+
+        APIWrapper.prototype.get = function(url, headersAndData){
+            return this.request(this._createRequestObject('get', url, headersAndData));
+        };
+
+        APIWrapper.prototype.put = function(url, headersAndData){
+            return this.request(this._createRequestObject('put', url, headersAndData));
+        };
+
+        APIWrapper.prototype.post = function(url, headersAndData){
+            return this.request(this._createRequestObject('post', url, headersAndData));
+        };
+
+        APIWrapper.prototype.patch = function(url, headersAndData){
+            return this.request(this._createRequestObject('patch', url, headersAndData));
+        };
+
+        APIWrapper.prototype.options = function(url, headersAndData){
+            return this.request(this._createRequestObject('options', url, headersAndData));
+        };
+
+        APIWrapper.prototype.delete = function(url, headersAndData){
+            return this.request(this._createRequestObject('delete', url, headersAndData));
+        };
+
+        APIWrapper.prototype.getOptions = function(url){
+            return this.options(url, {}).then(function(data){
+
+                if(!this.optionsFormatter || !angular.isFunction(this.optionsFormatter.format)) return data;
+                return this.optionsFormatter.format(data);
+
+            }.bind(this));
+        };
 
 
 
@@ -328,7 +414,7 @@
 
 			return $http( requestData )
 				.then( function( response ) {
-	
+
 					return handleSuccess( response );					
 
 				}, function( response ) {
@@ -409,16 +495,6 @@
 
 	} )();
 
-
-
-
-
-
-
-
-	angular
-	.module( 'jb.apiWrapper' )	
-
 	/**
 	* Service that translates distributed time strings (YYYY-MM-DD HH:MM:SS) into
 	* JS dates (with local UTC offset) and converts local dates with UTC offset into 
@@ -427,7 +503,7 @@
 	* Needs to stay here: Is used to send HEADERS (!) sometimes.
 	*
 	*/
-	.factory( 'APIDateService', [ '$filter', function( $filter ) {
+	_module.factory( 'APIDateService', [ '$filter', function( $filter ) {
 
 		function pad( nr ) {
 			var sign = nr < 0 ? '-' : ''
@@ -474,9 +550,5 @@
 		};
 
 	} ] );
-
-
-
-
 
 } )();

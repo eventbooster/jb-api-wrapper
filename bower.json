@@ -1,27 +1,27 @@
 {
-	"name"			: "jb-api-wrapper"
-	, "version"		: "0.4.8"
-	, "main"		: "src/apiWrapperService.js"
-	, "dependencies": {
-		"angular"	: ">=1.2.0"
-	}
-	, "ignore"		: [
-		"tests"
-		, "js"
-		, "bower.json"
-		, "README.md"
-		, "LICENSE"
-	]
-	, "license"		: "MIT"
-	, "authors"		: [
-		{ 
-			"name"			: "Felix Steiner"
-			, "email"		: "felix@joinbox.com"
-			, "homepage"	: "http://joinbox.com" 
-		}
-	]
-	, "repository"	: {
-		"type"		: "git"
-		, "url"		: "git://github.com/joinbox/jb-api-wrapper.git"
-	}
+  "name": "jb-api-wrapper",
+  "version": "0.5.0",
+  "main": "src/apiWrapperService.js",
+  "dependencies": {
+    "angular": "1.5.*"
+  },
+  "ignore": [
+    "tests",
+    "js",
+    "bower.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Felix Steiner",
+      "email": "felix@joinbox.com",
+      "homepage": "http://joinbox.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/joinbox/jb-api-wrapper.git"
+  }
 }

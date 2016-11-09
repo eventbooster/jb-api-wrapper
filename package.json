@@ -1,0 +1,38 @@
+{
+  "name": "jb-api-wrapper",
+  "version": "0.1.0",
+  "description": "Wrapper to query a fluffy/distributed api from an angular application.",
+  "public": false,
+  "main": "index.js",
+  "scripts": {
+    "test": "node_modules/.bin/karma start karma.conf.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joinbox/jb-api-wrapper.git"
+  },
+  "author": "Felix Steiner <felix@joinbox.com> (http://www.joinbox.com)",
+  "contributors": [
+    {
+      "name": "Michael Rüfenacht",
+      "email": "michael.ruefenacht@joinbox.com",
+      "url": "http://www.joinbox.com"
+    }
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/joinbox/jb-api-wrapper/issues"
+  },
+  "homepage": "https://github.com/joinbox/jb-api-wrapper#readme",
+  "devDependencies": {
+    "angular-mocks": "1.5.*",
+    "jasmine-core": "2.5.*",
+    "jasmine-expect": "3.0.*",
+    "karma": "1.3.*",
+    "karma-chrome-launcher": "2.0.*",
+    "karma-cli": "1.0.*",
+    "karma-firefox-launcher": "1.0.*",
+    "karma-jasmine": "1.0.*",
+    "karma-jasmine-matchers": "3.0.*"
+  }
+}
