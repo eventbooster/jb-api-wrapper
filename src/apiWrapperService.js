@@ -35,7 +35,8 @@
 
 
 		var   _defaultHeaders   = {}
-            , _optionsFormatter = null;
+            , _optionsFormatter = null
+            , _cacheEnabled     = true;
 
 
 		/**
@@ -54,6 +55,10 @@
 			}
 
 		};
+
+        this.disableCache = function(){
+            _cacheEnabled = false;
+        };
 
         /**
          * Allows setting single headers in the config phase.
@@ -87,7 +92,7 @@
 		// Returns service stuff (that might be used AFTER the config phase)
 		this.$get = [ '$http', '$q', function( $http, $q ) {
 
-			return new APIWrapper( $http, $q, _optionsFormatter, { headers: _defaultHeaders } );
+			return new APIWrapper( $http, $q, _optionsFormatter, { headers: _defaultHeaders } , _cacheEnabled);
 
 		} ];
 
@@ -105,7 +110,7 @@
 			, $http
 			, _defaults;
 
-		APIWrapper = function( http, q, optionsFormatter, defaults ) {
+		APIWrapper = function( http, q, optionsFormatter, defaults , cacheEnabled) {
 
 			// Browser doesn't support FormData
 			if( !window.FormData ) {
@@ -114,7 +119,9 @@
 
 			$q = q;
 			$http = http;
-            this.optionsFormatter = optionsFormatter;
+            this.optionsFormatter   = optionsFormatter;
+            this.optionsCache       = {};
+            this.cacheEnabled       = cacheEnabled !== false;
 			_defaults = defaults;
 
 		};
@@ -189,13 +196,39 @@
             return this.request(this._createRequestObject('delete', url, headersAndData));
         };
 
-        APIWrapper.prototype.getOptions = function(url){
-            return this.options(url, {}).then(function(data){
+        APIWrapper.prototype.getOptions = function(url, refreshCache){
 
-                if(!this.optionsFormatter || !angular.isFunction(this.optionsFormatter.format)) return data;
-                return this.optionsFormatter.format(data);
+			var basePromise;
 
-            }.bind(this));
+			if(this.cacheEnabled){
+                var cached = this.optionsCache[url];
+                if(angular.isUndefined(cached) || refreshCache === true){
+                    this.optionsCache[url] = basePromise = this.options(url, {});
+                } else {
+                    basePromise = cached;
+                }
+            } else {
+                basePromise = this.options(url, {});
+            }
+
+            return basePromise.then(this.applyFormatter.bind(this));
+        };
+
+        APIWrapper.prototype.disableCache = function(){
+            this.cacheEnabled = false;
+        };
+
+        APIWrapper.prototype.enableCache = function(){
+            this.cacheEnabled = true;
+        };
+
+        APIWrapper.prototype.invalidateOptionsCache = function(){
+            this.optionsCache = {};
+        };
+
+        APIWrapper.prototype.applyFormatter = function(data){
+            if(!this.optionsFormatter || !angular.isFunction(this.optionsFormatter.format)) return data;
+            return this.optionsFormatter.format(data);
         };
 
 

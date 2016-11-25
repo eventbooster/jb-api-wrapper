@@ -25,13 +25,22 @@ describe('jb.apiWrapper', function() {
                 }]);
             }
             , $httpBackend
-            , $timeout;
+            , $timeout
+            , $http
+            , accessCounts = {};
 
-        beforeEach(inject(['$timeout', '$httpBackend', function(timeout, mockHTTP){
+
+        beforeEach(inject(['$timeout', '$httpBackend', '$http', function(timeout, mockHTTP, _$http_){
             $httpBackend    = mockHTTP;
             $timeout        = timeout;
+            $http           = _$http_;
             ['options', 'put', 'post', 'patch', 'get', 'delete'].forEach(function(method){
-                $httpBackend.when(method.toUpperCase(), endpoint).respond({});
+                var uppercaseMethod = method.toUpperCase();
+                accessCounts[uppercaseMethod] = 0;
+                $httpBackend.when(uppercaseMethod, endpoint).respond(function(method, url, data, headers, params){
+                    accessCounts[method]++;
+                    return [200, {}];
+                });
             });
         }]));
 
@@ -120,7 +129,83 @@ describe('jb.apiWrapper', function() {
             $httpBackend.flush();
         });
 
+        it('should take the options from cache if not disabled', function(done){
 
+            var   counter = 0
+                , callback = function(result) {
+                      if (++counter == 2) {
+                          expect(accessCounts['OPTIONS']).toBe(1);
+                          done();
+                      }
+                  };
+
+            $httpBackend.expect('OPTIONS', endpoint);
+            //spyOn($httBackend);
+            // initialize the current service
+            initializeService();
+            service.getOptions(endpoint).then(callback, done.fail);
+            service.getOptions(endpoint).then(callback, done.fail);
+            $httpBackend.flush();
+        });
+
+        it('should load the options multiple times if the service is told to disable the cache', function(done){
+
+            var   counter = 0
+                , callback = function(result) {
+                      if (++counter == 3) {
+                          //expect($httpBackend)
+                          expect(accessCounts['OPTIONS']).toBe(3);
+                          done();
+                      }
+                  };
+
+            $httpBackend.expect('OPTIONS', endpoint);
+            initializeService();
+            service.disableCache();
+            service.getOptions(endpoint).then(callback, done.fail);
+            service.getOptions(endpoint).then(callback, done.fail);
+            service.getOptions(endpoint).then(callback, done.fail);
+            $httpBackend.flush();
+        });
+
+        it('should refresh the cache if told so', function(done){
+
+            var   counter = 0
+                , callback = function(result) {
+                      if (++counter == 3) {
+                          expect(accessCounts['OPTIONS']).toBe(2);
+                          done();
+                      }
+                  };
+
+            $httpBackend.expect('OPTIONS', endpoint);
+            // initialize the current service
+            initializeService();
+            service.getOptions(endpoint, true).then(callback, done.fail);
+            service.getOptions(endpoint).then(callback, done.fail);
+            service.getOptions(endpoint, true).then(callback, done.fail);
+            $httpBackend.flush();
+        });
+
+        it('should invalidate the whole cache if told so', function(done){
+
+            var   counter = 0
+                , callback = function(result) {
+                      if (++counter == 3) {
+                          expect(accessCounts['OPTIONS']).toBe(2);
+                          done();
+                      }
+                  };
+
+            $httpBackend.expect('OPTIONS', endpoint);
+            // initialize the current service
+            initializeService();
+            service.getOptions(endpoint).then(callback, done.fail);
+            service.getOptions(endpoint).then(callback, done.fail);
+            service.invalidateOptionsCache();
+            service.getOptions(endpoint).then(callback, done.fail);
+            $httpBackend.flush();
+        });
     });
     // @see: http://stackoverflow.com/questions/14771810/how-to-test-angularjs-custom-provider
     describe('APIWrapperServiceProvider', function() {
