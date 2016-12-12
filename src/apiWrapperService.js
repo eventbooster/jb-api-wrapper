@@ -203,7 +203,8 @@
 			if(this.cacheEnabled){
                 var cached = this.optionsCache[url];
                 if(angular.isUndefined(cached) || refreshCache === true){
-                    this.optionsCache[url] = basePromise = this.options(url, {});
+                    basePromise = this.options(url, {});
+                    this.optionsCache[url] = basePromise;
                 } else {
                     basePromise = cached;
                 }
@@ -374,11 +375,6 @@
 			// Disable caching
 			requestData.headers.Pragma 					= requestData.headers.pragma || requestData.headers.Pragma || 'no-cache';
 			requestData.headers[ 'Cache-Control' ] 		= requestData.headers[ 'Cache-Control' ] || requestData.headers[ 'Cache-Control' ] || 'no-cache';
-
-
-
-
-
 
 			// Data
 			requestData.data = requestData.data || {};
