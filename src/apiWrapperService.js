@@ -92,7 +92,7 @@
 		// Returns service stuff (that might be used AFTER the config phase)
 		this.$get = [ '$http', '$q', function( $http, $q ) {
 
-			return new APIWrapper( $http, $q, _optionsFormatter, { headers: _defaultHeaders } , _cacheEnabled);
+			return new APIWrapper( $http, $q, _optionsFormatter, { headers: _defaultHeaders } , _cacheEnabled);
 
 		} ];
 
