@@ -92,7 +92,7 @@
 		// Returns service stuff (that might be used AFTER the config phase)
 		this.$get = [ '$http', '$q', function( $http, $q ) {
 
-			return new APIWrapper( $http, $q, _optionsFormatter, { headers: _defaultHeaders } , _cacheEnabled);
+			return new APIWrapper( $http, $q, _optionsFormatter, { headers: _defaultHeaders }, _cacheEnabled);
 
 		} ];
 
@@ -249,7 +249,7 @@
 				for( var i in data ) {
 
 					// Object
-					if( angular.isObject( data[ i ] ) ) {
+					if( angular.isObject( data[ i ] ) ) {
 						
 						// File
 						if( window.File && data[ i ] instanceof File ) {
@@ -269,7 +269,7 @@
 					}
 
 					// undefined, null: send empty String
-					else if( data === undefined || data === null ) {
+					else if( data === undefined || data === null ) {
 						formData.append( i, '' );
 					}
 
@@ -374,20 +374,20 @@
 
 			// Disable caching
 			requestData.headers.Pragma 					= requestData.headers.pragma || requestData.headers.Pragma || 'no-cache';
-			requestData.headers[ 'Cache-Control' ] 		= requestData.headers[ 'Cache-Control' ] || requestData.headers[ 'Cache-Control' ] || 'no-cache';
+			requestData.headers[ 'Cache-Control' ] 		= requestData.headers[ 'Cache-Control' ] || requestData.headers[ 'Cache-Control' ] || 'no-cache';
 
 			// Data
-			requestData.data = requestData.data || {};
+			requestData.data = requestData.data || {};
 
 			// Convert data to Multipart/Form-Data and set header correspondingly
 			// if we're PUTting, PATCHing or POSTing
-			if( requestData.method === 'post' || requestData.method == 'put' || requestData.method == 'patch' ) {
+			if( requestData.method === 'post' || requestData.method == 'put' || requestData.method == 'patch' ) {
 
 
 				// Content-Language is only needed on requests that write to the server
 				requestData.headers[ 'Content-Language' ] 	= requestData.headers[ 'content-language' ] || requestData.headers[ 'Content-Language' ];
 				if( getUserLanguages().length > 0 && !requestData.headers[ 'Content-Language' ] ) {
-					requestData.headers[ 'Content-Language' ] = getUserLanguages()[ 0 ];
+					requestData.headers[ 'Content-Language' ] = getUserLanguages()[ 0 ];
 				}
 				
 				// Content-Type
@@ -434,7 +434,7 @@
 
 			// IE f***ing 9 f****ng cashes all f*****ng get requests
 			if( requestData.method === 'get' && navigator && navigator.appVersion && navigator.appVersion.toLowerCase().indexOf("msie 9") > -1 ) {
-				requestData.params = requestData.params || {};
+				requestData.params = requestData.params || {};
 				requestData.params._nocache = new Date().getTime() + Math.round( Math.random() * 9999 );
 			}
 
@@ -449,7 +449,7 @@
 				}, function( response ) {
 
 					// 301 and 302 should not fail, hell!
-					var validStatusCodes = [ 301, 302 ];
+					var validStatusCodes = [ 301, 302 ];
 					if( response && response.status && validStatusCodes.indexOf( response.status ) > -1 ) {
 						return handleSuccess( response );
 					}
@@ -463,7 +463,7 @@
 						if( angular.isObject( response.data ) ) {
 
 							// Names of the fields that might hold the error, least important first
-							var fieldNames = [ 'status', 'msg', 'message', 'description' ];
+							var fieldNames = [ 'status', 'msg', 'message', 'description' ];
 							fieldNames.forEach( function( fieldName ) {
 								if( response.data[ fieldName ] ) {
 									description = response.data[ fieldName ];
